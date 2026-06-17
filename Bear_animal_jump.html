@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bear Stair Jump - Final Edition</title>
+    <style>
+        /* Base Environment */
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: Arial, sans-serif;
+            background-color: #ffb6c1; box-sizing: border-box;
+        }
+
+        #game-board {
+            position: relative; width: 100%; height: 100%;
+            border: 25px solid #d4af37; box-sizing: border-box; overflow: hidden;
+        }
+
+        /* UI Elements */
+        .ui-btn {
+            position: absolute; left: 20px; padding: 10px 20px;
+            font-size: 1.2rem; font-weight: bold; background-color: #fff;
+            border: 3px solid #333; border-radius: 10px; cursor: pointer;
+            z-index: 100; transition: all 0.2s;
+        }
+        .ui-btn:hover { background-color: #ddd; }
+        
+        #sound-toggle { top: 20px; }
+        #manual-btn { top: 75px; } 
+
+        /* Manual Modal Popup */
+        #manual-modal {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); width: 350px;
+            background-color: #fff; border: 5px solid #333; border-radius: 15px;
+            padding: 20px; z-index: 200; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        #manual-modal h2 { margin-top: 0; color: #ff8c00; font-size: 2rem; }
+        #manual-modal p { font-size: 1.1rem; color: #555; margin-bottom: 20px; }
+        #manual-modal ul { text-align: left; list-style-type: none; padding: 0; margin-bottom: 20px;}
+        #manual-modal li { margin-bottom: 10px; font-size: 1.1rem; }
+        #manual-modal strong { color: #d4af37; }
+        #close-manual {
+            padding: 10px 20px; font-size: 1.2rem; background-color: #ff8c00;
+            color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+        }
+        #close-manual:hover { background-color: #e67e00; }
+        
+        /* Modal Overlay Background */
+        #modal-overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 190;
+        }
+
+        #start-text {
+            position: absolute; top: 15%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 4rem; color: #333; font-weight: bold; transition: opacity 0.5s ease; z-index: 10;
+        }
+
+        #counter {
+            position: absolute; bottom: 20px; right: 30px; font-size: 5rem;
+            font-weight: bold; color: #fff; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); z-index: 30;
+        }
+
+        #ouch-msg {
+            position: absolute; color: #ff0000; font-size: 3rem; font-weight: bold;
+            text-shadow: 2px 2px 0 #fff; opacity: 0; transition: opacity 0.2s; z-index: 50;
+            pointer-events: none;
+        }
+
+        /* Window & Sky */
+        #window-frame {
+            position: absolute; top: 10%; left: 25%; width: 180px; height: 270px;
+            border: 10px solid #5c0000; /* Very Dark Red Border */
+            background-color: #0b1d3a; border-radius: 10px 10px 0 0;
+            overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 5px 5px 15px rgba(0,0,0,0.2);
+            transition: background-color 0.5s linear; z-index: 5;
+        }
+
+        #window-pane-cross {
+            position: absolute; width: 100%; height: 100%;
+            background: linear-gradient(to right, transparent 47%, #5c0000 47%, #5c0000 53%, transparent 53%),
+                        linear-gradient(to bottom, transparent 47%, #5c0000 47%, #5c0000 53%, transparent 53%); /* Very Dark Red Crossbars */
+            z-index: 7;
+        }
+
+        #sun, #moon { position: absolute; border-radius: 50%; transition: bottom 0.5s linear; z-index: 6; }
+        #moon { width: 54px; height: 54px; background-color: #f4f6f0; box-shadow: 0 0 20px #fff; right: 25px; bottom: 180px; }
+        #sun { width: 63px; height: 63px; background-color: #FFD700; box-shadow: 0 0 40px #FF8C00; left: 25px; bottom: -100px; }
+
+        /* Stairs & Railing */
+        .stair { position: absolute; background-color: #3e2723; border-top: 3px solid #5c4033; border-right: 2px solid #2b1b17; bottom: 0; }
+        .railing-pole { position: absolute; left: 10px; bottom: 100%; width: 4px; height: 50px; background-color: #2c3e50; }
+        .railing-top { position: absolute; left: 5px; bottom: calc(100% + 50px); width: 14px; height: 6px; background-color: #e74c3c; border-radius: 3px; }
+
+        /* Carton Boxes, Cat & Mouse */
+        #boxes-container {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 250px; height: 150px; z-index: 15;
+        }
+        .box { position: absolute; background-color: #d2a679; border: 2px solid #a67c52; box-shadow: inset 0 0 20px rgba(0,0,0,0.1); }
+        #box1 { width: 90px; height: 90px; bottom: 0; left: 10px; z-index: 20; }
+        #box2 { width: 100px; height: 70px; bottom: 0; left: 100px; z-index: 20; }
+        #box-cat-home { width: 90px; height: 80px; bottom: 70px; left: 60px; background: transparent; border: none; box-shadow: none; z-index: 18; }
+        .box-base { position: absolute; bottom: 0; width: 100%; height: 100%; background-color: #d2a679; border: 2px solid #a67c52; border-top: none; z-index: 20; }
+        #box-flap { position: absolute; top: 0; left: 0; width: 100%; height: 15px; background-color: #c09467; border: 2px solid #a67c52; transform-origin: left bottom; transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 22; }
+        
+        #cat-container { position: absolute; bottom: 0px; left: 10px; width: 70px; height: 70px; z-index: 19; transform: translateY(80px); transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #thumbs-up-msg { position: absolute; top: -30px; left: -10px; background: #fff; padding: 5px 10px; border-radius: 10px; font-weight: bold; color: #333; white-space: nowrap; opacity: 0; transition: opacity 0.5s; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
+
+        /* The Mouse */
+        #mouse-container {
+            position: absolute; bottom: 10px; left: -50px; width: 40px; height: 20px;
+            z-index: 25; opacity: 0;
+        }
+        .scurry { animation: mouseRun 3s linear forwards; opacity: 1 !important; }
+        @keyframes mouseRun {
+            0% { transform: translateX(0px); }
+            40% { transform: translateX(120px); }
+            60% { transform: translateX(120px) scaleX(-1); } 
+            100% { transform: translateX(350px); opacity: 0; }
+        }
+
+        /* Bear Styling & Motivating Text */
+        #bear-wrapper { position: absolute; width: 80px; height: 100px; bottom: 0; left: 0; z-index: 25; transform-origin: bottom center; }
+        
+        #motivate-msg {
+            position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+            background-color: #fff; border: 2px solid #333; padding: 4px 8px;
+            border-radius: 8px; font-weight: bold; 
+            color: #3e2723; /* Dark Brown Text */
+            font-size: 1.1rem;
+            white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        #motivate-msg::after {
+            content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+            border-width: 6px 6px 0; border-style: solid; border-color: #fff transparent transparent transparent;
+        }
+
+        svg { width: 100%; height: 100%; }
+        .neutral-mouth { opacity: 1; }
+        .smile-mouth { opacity: 0; }
+        
+        /* Body Part Transitions */
+        .bear-head, .bear-body, .arm, .leg { transition: transform 0.2s ease-in-out; }
+        .bear-head { transform-origin: 50% 30%; }
+        .bear-body { transform-origin: 50% 70%; }
+        .left-arm { transform-origin: 18px 55px; }
+        .right-arm { transform-origin: 82px 55px; }
+
+        /* Jump Action */
+        .jumping .neutral-mouth { opacity: 0; }
+        .jumping .smile-mouth { opacity: 1; }
+        .jumping .bear-head { transform: rotate(15deg); }
+        .jumping .left-arm { transform: rotate(130deg); }  
+        .jumping .right-arm { transform: rotate(-130deg); }
+
+        /* Sit Action */
+        .sitting .bear-head { transform: translateY(20px); }
+        .sitting .bear-body { transform: translateY(15px) scaleY(0.85); }
+        .sitting .leg { transform: translateY(-10px); }
+        .sitting .left-arm { transform: rotate(45deg); }
+        .sitting .right-arm { transform: rotate(-45deg); }
+
+        /* End Screen */
+        #end-screen {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); z-index: 100; color: white;
+            flex-direction: column; justify-content: center; align-items: center; text-align: center;
+        }
+        #end-screen h1 { font-size: 4rem; margin-bottom: 20px; color: #FFD700; }
+        #end-screen p { font-size: 1.5rem; margin-top: 0; margin-bottom: 30px; color: #ccc;}
+        #fireworks-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 90; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="game-board">
+        <button id="sound-toggle" class="ui-btn" onclick="toggleSound()">Sound: ON</button>
+        <button id="manual-btn" class="ui-btn" onclick="openManual()">Manual</button>
+
+        <div id="modal-overlay"></div>
+        <div id="manual-modal">
+            <h2>Bear Stair Jump</h2>
+            <p>Help the little bear climb to the top of the stairs!</p>
+            <ul>
+                <li><strong>Right Arrow / Space:</strong> Climb Up</li>
+                <li><strong>Left Arrow:</strong> Climb Down</li>
+                <li><strong>Up Arrow:</strong> Jump in place</li>
+                <li><strong>Down Arrow:</strong> Sit down</li>
+                <li><strong>F Key:</strong> Collapse and Fall</li>
+            </ul>
+            <button id="close-manual" onclick="closeManual()">Close</button>
+        </div>
+
+        <div id="window-frame">
+            <div id="window-pane-cross"></div>
+            <div id="moon"></div>
+            <div id="sun"></div>
+        </div>
+
+        <div id="start-text">Let's Start!</div>
+        <div id="stairs-container"></div>
+        <div id="ouch-msg">Ouch!</div>
+        
+        <div id="boxes-container">
+            <div class="box" id="box1"></div>
+            <div class="box" id="box2"></div>
+            
+            <div class="box" id="box-cat-home">
+                <div id="box-flap"></div>
+                <div id="cat-container">
+                    <div id="thumbs-up-msg">👍 Cool!</div>
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="35" fill="#ffffff" stroke="#ccc" stroke-width="2"/>
+                        <polygon points="20,30 35,15 45,25" fill="#ffffff" stroke="#ccc" stroke-width="2"/>
+                        <polygon points="80,30 65,15 55,25" fill="#ffffff" stroke="#ccc" stroke-width="2"/>
+                        <circle cx="35" cy="45" r="4" fill="#333"/>
+                        <circle cx="65" cy="45" r="4" fill="#333"/>
+                        <path d="M 40 60 Q 50 70 60 60" fill="none" stroke="#333" stroke-width="4"/>
+                    </svg>
+                </div>
+                <div class="box-base"></div>
+            </div>
+
+            <div id="mouse-container">
+                <svg viewBox="0 0 50 20">
+                    <ellipse cx="25" cy="10" rx="15" ry="8" fill="#555"/>
+                    <circle cx="42" cy="10" r="3" fill="#111"/> 
+                    <circle cx="35" cy="5" r="4" fill="#555"/>  
+                    <path d="M 10 10 Q -5 5 -10 15" fill="none" stroke="#555" stroke-width="2"/>
+                </svg>
+            </div>
+        </div>
+
+        <div id="bear-wrapper">
+            <div id="motivate-msg">Let's go!</div>
+            
+            <svg viewBox="0 0 100 120" id="bear-svg">
+                <rect class="leg" x="25" y="90" width="15" height="25" rx="5" fill="#8B4000"/>
+                <rect class="leg" x="60" y="90" width="15" height="25" rx="5" fill="#8B4000"/>
+                
+                <g class="arms">
+                    <rect class="arm left-arm" x="12" y="50" width="12" height="30" rx="6" fill="#8B4000"/>
+                    <rect class="arm right-arm" x="76" y="50" width="12" height="30" rx="6" fill="#8B4000"/>
+                </g>
+
+                <ellipse class="bear-body" cx="50" cy="70" rx="35" ry="40" fill="#cc5500"/>
+                <ellipse class="bear-body" cx="50" cy="45" rx="20" ry="10" fill="#8B4000"/>
+                
+                <g class="bear-head">
+                    <circle cx="25" cy="20" r="12" fill="#8B4000"/>
+                    <circle cx="75" cy="20" r="12" fill="#8B4000"/>
+                    <circle cx="25" cy="20" r="6" fill="#f4a460"/>
+                    <circle cx="75" cy="20" r="6" fill="#f4a460"/>
+                    <circle cx="50" cy="35" r="28" fill="#cc5500"/>
+                    <ellipse cx="50" cy="45" rx="15" ry="10" fill="#f4a460"/>
+                    <ellipse cx="50" cy="40" rx="5" ry="3" fill="#111"/>
+                    <circle cx="38" cy="28" r="4" fill="#111"/>
+                    <circle cx="62" cy="28" r="4" fill="#111"/>
+                    <path class="neutral-mouth" d="M 45 48 Q 50 50 55 48" fill="none" stroke="#111" stroke-width="2"/>
+                    <path class="smile-mouth" d="M 40 46 Q 50 56 60 46" fill="none" stroke="#111" stroke-width="3"/>
+                </g>
+            </svg>
+        </div>
+
+        <div id="counter">0 / 15</div>
+    </div>
+
+    <canvas id="fireworks-canvas"></canvas>
+
+    <div id="end-screen">
+        <h1>Congratulations You done this!</h1>
+        <p>Press 'Enter' to Play Again</p>
+    </div>
+
+    <script>
+        const totalStairs = 15;
+        let currentStair = 0;
+        let isJumping = false;
+        let gameActive = true;
+        let soundOn = true;
+        
+        // Element References
+        const stairsContainer = document.getElementById('stairs-container');
+        const bearWrapper = document.getElementById('bear-wrapper');
+        const bearSvg = document.getElementById('bear-svg');
+        const windowFrame = document.getElementById('window-frame');
+        const sun = document.getElementById('sun');
+        const moon = document.getElementById('moon');
+        const counter = document.getElementById('counter');
+        const startText = document.getElementById('start-text');
+        const endScreen = document.getElementById('end-screen');
+        const catContainer = document.getElementById('cat-container');
+        const boxFlap = document.getElementById('box-flap');
+        const thumbsUpMsg = document.getElementById('thumbs-up-msg');
+        const mouseContainer = document.getElementById('mouse-container');
+        const ouchMsg = document.getElementById('ouch-msg');
+        const motivateMsg = document.getElementById('motivate-msg');
+        
+        let stairWidth, stairHeight;
+        let motivateTimeout;
+
+        // Motivation Phrases Array
+        const motivations = [
+            "Let's go!", "Great start!", "Keep it up!", "Push forward!", 
+            "You got this!", "Nice jump!", "Don't stop!", "Halfway there!", 
+            "Looking good!", "Almost!", "Stay focused!", "Just a few more!", 
+            "Feel the burn!", "One more push!", "Victory jump!"
+        ];
+
+        // --- Manual Logic ---
+        function openManual() {
+            document.getElementById('manual-modal').style.display = 'block';
+            document.getElementById('modal-overlay').style.display = 'block';
+            gameActive = false;
+        }
+        function closeManual() {
+            document.getElementById('manual-modal').style.display = 'none';
+            document.getElementById('modal-overlay').style.display = 'none';
+            gameActive = true;
+        }
+        
+        // --- Audio Synthesizer ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function toggleSound() { soundOn = !soundOn; document.getElementById('sound-toggle').innerText = soundOn ? "Sound: ON" : "Sound: OFF"; }
+        function playTone(freqStart, freqEnd, type, duration, vol) {
+            if (!soundOn) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freqStart, audioCtx.currentTime);
+            if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + duration);
+        }
+        function playJumpSound() { playTone(300, 600, 'triangle', 0.2, 0.5); }
+        function playFallSound() { playTone(250, 50, 'sawtooth', 0.6, 0.6); }
+        function playMeowSound() {
+            if (!soundOn) return; if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(500, audioCtx.currentTime); osc.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 0.3); osc.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 0.7);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.1); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.7);
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.7);
+        }
+        function playCelebrationSound() {
+            if (!soundOn) return;
+            setTimeout(() => playTone(523.25, null, 'square', 0.2, 0.3), 0); setTimeout(() => playTone(659.25, null, 'square', 0.2, 0.3), 150);
+            setTimeout(() => playTone(783.99, null, 'square', 0.2, 0.3), 300); setTimeout(() => playTone(1046.50, null, 'square', 0.4, 0.3), 450);
+        }
+        function playFireworkSound() {
+            if (!soundOn) return; if (audioCtx.state === 'suspended') audioCtx.resume();
+            const bufferSize = audioCtx.sampleRate * 0.5; const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1; 
+            const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 800; 
+            const gainNode = audioCtx.createGain(); gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            noise.connect(filter); filter.connect(gainNode); gainNode.connect(audioCtx.destination); noise.start();
+        }
+
+        // --- Layout & Building ---
+        function createStairs() {
+            stairsContainer.innerHTML = '';
+            const availableWidth = window.innerWidth - 50; const availableHeight = window.innerHeight - 50;
+            stairWidth = availableWidth / (totalStairs + 1); stairHeight = availableHeight / (totalStairs + 3);
+            for (let i = 1; i <= totalStairs; i++) {
+                let stair = document.createElement('div'); stair.className = 'stair';
+                stair.style.width = availableWidth - (i * stairWidth) + 'px'; stair.style.height = (i * stairHeight) + 'px'; stair.style.left = (i * stairWidth) + 'px'; stair.style.zIndex = i;
+                let pole = document.createElement('div'); pole.className = 'railing-pole';
+                let topRail = document.createElement('div'); topRail.className = 'railing-top';
+                stair.appendChild(pole); stair.appendChild(topRail); stairsContainer.appendChild(stair);
+            }
+        }
+
+        function updateEnvironment() {
+            let progressPercentage = currentStair / totalStairs;
+            let r = Math.floor(11 + (135 - 11) * progressPercentage); let g = Math.floor(29 + (206 - 29) * progressPercentage); let b = Math.floor(58 + (235 - 58) * progressPercentage);
+            windowFrame.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+            moon.style.bottom = (180 - (280 * progressPercentage)) + 'px'; sun.style.bottom = (-100 + (230 * progressPercentage)) + 'px';
+            counter.innerText = `${currentStair} / ${totalStairs}`;
+            if (currentStair > 0) startText.style.opacity = 0;
+        }
+
+        function displayMotivation() {
+            if (currentStair > 0 && currentStair <= totalStairs) {
+                motivateMsg.innerText = motivations[currentStair - 1];
+                motivateMsg.style.opacity = 1;
+                clearTimeout(motivateTimeout);
+                motivateTimeout = setTimeout(() => { motivateMsg.style.opacity = 0; }, 1200);
+            }
+        }
+
+        // --- Action Handlers ---
+        function animateJump(startX, startY, targetX, targetY) {
+            isJumping = true;
+            bearSvg.classList.add('jumping');
+            let startTime = null; const duration = 350; const jumpHeightLimit = 80;
+
+            function animationLoop(currentTime) {
+                if (!startTime) startTime = currentTime;
+                let progress = Math.min((currentTime - startTime) / duration, 1);
+                let currentX = startX + (targetX - startX) * progress;
+                let currentY = startY + (targetY - startY) * progress + Math.sin(progress * Math.PI) * jumpHeightLimit;
+
+                bearWrapper.style.left = currentX + 'px'; bearWrapper.style.bottom = currentY + 'px';
+
+                if (progress < 1) { requestAnimationFrame(animationLoop); } 
+                else {
+                    isJumping = false;
+                    bearSvg.classList.remove('jumping');
+                    updateEnvironment();
+                    checkMouseScurry();
+                    if (currentStair === totalStairs) triggerEndGame();
+                }
+            }
+            requestAnimationFrame(animationLoop);
+        }
+
+        function collapseBear(startX, startY) {
+            isJumping = true;
+            playFallSound();
+            ouchMsg.style.left = bearWrapper.style.left;
+            ouchMsg.style.bottom = (parseInt(bearWrapper.style.bottom) + 120) + 'px';
+            ouchMsg.style.opacity = 1;
+
+            bearWrapper.style.transition = 'bottom 0.5s ease-in, left 0.5s linear, transform 0.5s linear';
+            bearWrapper.style.transform = 'rotate(-720deg) scale(0.5)'; 
+            
+            let resetX = (stairWidth / 2) - 40;
+            bearWrapper.style.left = resetX + 'px';
+            bearWrapper.style.bottom = '0px';
+
+            setTimeout(() => {
+                bearWrapper.style.transition = ''; 
+                bearWrapper.style.transform = 'rotate(0deg) scale(1)';
+                ouchMsg.style.opacity = 0; currentStair = 0; isJumping = false; updateEnvironment();
+            }, 500);
+        }
+
+        function checkMouseScurry() {
+            if (currentStair > 0 && currentStair % 4 === 0) {
+                mouseContainer.classList.remove('scurry');
+                void mouseContainer.offsetWidth; 
+                mouseContainer.classList.add('scurry');
+            }
+        }
+
+        // --- Keyboard Controls ---
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') e.preventDefault();
+            
+            if (e.code === 'Enter' && !gameActive && endScreen.style.display === 'flex') { resetGame(); return; }
+            if (!gameActive || isJumping) return;
+            if (e.code !== 'ArrowDown') bearSvg.classList.remove('sitting');
+
+            let startX = currentStair * stairWidth;
+            let startY = currentStair * stairHeight;
+            let offsetX = (stairWidth / 2) - 40;
+
+            switch(e.code) {
+                case 'Space':       
+                case 'ArrowRight':
+                    if (currentStair < totalStairs) {
+                        currentStair++; 
+                        playJumpSound();
+                        displayMotivation();
+                        animateJump(startX + offsetX, startY, (currentStair * stairWidth) + offsetX, currentStair * stairHeight);
+                    }
+                    break;
+                case 'ArrowLeft':
+                    if (currentStair > 0) {
+                        currentStair--; playJumpSound();
+                        motivateMsg.style.opacity = 0; 
+                        animateJump(startX + offsetX, startY, (currentStair * stairWidth) + offsetX, currentStair * stairHeight);
+                    }
+                    break;
+                case 'ArrowUp':
+                    playJumpSound();
+                    animateJump(startX + offsetX, startY, startX + offsetX, startY); 
+                    break;
+                case 'ArrowDown':
+                    bearSvg.classList.add('sitting'); 
+                    break;
+                case 'KeyF':
+                    if (currentStair < totalStairs) collapseBear(startX + offsetX, startY);
+                    break;
+            }
+        });
+
+        // --- Game Over Sequences ---
+        function triggerEndGame() {
+            gameActive = false;
+            boxFlap.style.transform = 'rotate(-100deg)';
+            setTimeout(() => { catContainer.style.transform = 'translateY(0)'; playMeowSound(); thumbsUpMsg.style.opacity = 1; }, 300);
+            setTimeout(() => { playCelebrationSound(); endScreen.style.display = 'flex'; startFireworks(); }, 1500); 
+        }
+
+        function resetGame() {
+            currentStair = 0; gameActive = true; endScreen.style.display = 'none'; startText.style.opacity = 1;
+            catContainer.style.transform = 'translateY(80px)'; boxFlap.style.transform = 'rotate(0deg)'; thumbsUpMsg.style.opacity = 0; 
+            mouseContainer.classList.remove('scurry'); motivateMsg.style.opacity = 0; stopFireworks();
+            bearWrapper.style.left = ((stairWidth / 2) - 40) + 'px'; bearWrapper.style.bottom = '0px'; updateEnvironment();
+        }
+
+        // --- Fireworks System ---
+        const canvas = document.getElementById('fireworks-canvas'); const ctx = canvas.getContext('2d');
+        let particles = []; let fireworkAnimation;
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        function createParticles() {
+            const x = canvas.width / 2 + (Math.random() * 300 - 150); const y = canvas.height / 2 + (Math.random() * 300 - 150);
+            playFireworkSound(); 
+            for (let i = 0; i < 60; i++) particles.push({ x: x, y: y, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15, life: Math.random() * 50 + 50, color: `hsl(${Math.random() * 360}, 100%, 60%)` });
+        }
+        function drawFireworks() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i]; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
+                p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life--; if (p.life <= 0) particles.splice(i, 1);
+            }
+            if (Math.random() < 0.05) createParticles(); fireworkAnimation = requestAnimationFrame(drawFireworks);
+        }
+        function startFireworks() { resizeCanvas(); drawFireworks(); }
+        function stopFireworks() { cancelAnimationFrame(fireworkAnimation); ctx.clearRect(0, 0, canvas.width, canvas.height); particles = []; }
+
+        // --- Initialization ---
+        window.addEventListener('resize', () => { createStairs(); resizeCanvas(); bearWrapper.style.left = (currentStair * stairWidth) + ((stairWidth / 2) - 40) + 'px'; bearWrapper.style.bottom = (currentStair * stairHeight) + 'px'; });
+        createStairs(); updateEnvironment(); bearWrapper.style.left = ((stairWidth / 2) - 40) + 'px';
+    </script>
+</body>
+</html>
